@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<!--
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+-->
+<html>
+	<head>
+		<title>TODO supply a title</title>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	</head>
+	<body>
+		<style>
+			.statusTop {background-color: #ffffff; padding:10px; font-size: 8pt; }
+			.timelinearea {visibility: visible; display: block;  }
+			.popupon  { visibility: visible; background-color: #f0f6f6; border: 1px solid #000000;}
+			.popupoff { visibility: hidden; }
+			.clicker  { font-size: 8pt; background-color: #eeeeee; }
+			.innertitle { font-family: arial; font-size: 10pt; font-weight: bold; }
+			.helpheader { font-family: arial; font-size: 10pt; }
+			.helptext { font-family: arial; font-size: 8pt; }
+			.sectionhead { font-family: arial; font-size: 9pt; font-weight: bold; }
+        </style>
+
+        <div id="status" style="height: 4%; min-height: 18px; ">
+			<table style="border-collapse: collapse; border: 0px; width: 100%;">
+				<tr>
+					<td id="statusLeft" width="10%" style="">
+						<a href="" id="newWinLink" class="statusTop" onClick="popOut();">Pop-out</a>
+					</td>
+					<td id="statusTitle" class="innertitle" width="80%" style="text-align: center;"></td>
+					<td id="statusRight" width="10%" style="text-align: right;">
+						<a href="#" id="helpButton" class="statusTop" onClick="helpPop();">help</a>
+					</td>
+				</tr>
+			</table>
+        </div>
+        <div id="timelinebox" class="timelinearea" style="font-size: 8pt; height: 96%;">Loading...
+        </div>
+        <div id="helpbox" class="popupoff" style="position: absolute; top: 19; right: 5; z-index: 10; width: 300px; font-size: 8pt; ">
+			<div style="width: 100%;">
+				<table><tr>
+						<td width="75%" id="helpHeadText" class="helpheader">How to use this TimeLine Gadget... </td>
+						<td width="25%" style="text-align: right;">
+							<span class="clicker" style="text-align:right; "><a href="#" onClick="helpPop();">close</a></span>
+						</td></tr>
+				</table>
+			</div>
+			<span class="helptext">
+				This gadget is used within a Google spreadsheet to create a visual timeline
+				of dated information. The source spreadsheet must contain the following fields:<br/>
+				<ul class="helptext" style="list-style-type: square;">
+					<li><span class="sectionhead">title:</span> description of each event</li>
+					<li><span class="sectionhead">start:</span> the start date of the event<br/>
+					<li><span class="sectionhead">end:</span> the end date of the event (optional)<br/>
+					<li><span class="sectionhead">image:</span> a URL of an image which should show when the event is clicked<br/>
+					<li><span class="sectionhead">link:</span> a URL which will appear as a link in the popup when the event is clicked<br/>
+					<li><span class="sectionhead">description:</span> a descriptin of the event which shows when the event is clicked.<br/>
+				</ul>
+				<br/>
+				<div width="100%" style="text-align:right;">
+					<a href="http://sites.google.com/site/97gadgets/Home/visual-timeline-gadget" target="_blank">more help...</a>
+				</div>
+        </div>
+
+        <script src="http://www.google.com/jsapi" type="text/javascript"></script>
+        <script type="text/javascript">
+								var SimileAjax_urlPrefix = "http://static.simile.mit.edu/ajax/api-2.0/";
+								var Timeline_urlPrefix = "http://api.simile-widgets.org/timeline/2.3.1/timeline-api.js?bundle=true";
+        </script>
+        <script src="http://api.simile-widgets.org/timeline/2.3.1/timeline-api.js?bundle=true"></script>
+        <script src="http://static.simile.mit.edu/ajax/api-2.0/simile-ajax-api.js"></script>
+        <script type="text/javascript">
+								// CHANGE LOG =======
+								// [2008-04-09: JR] Moved the google.load("visualization","1") into a gadget ONLOAD method to wait for the DOM to load
+								// ==================
+								// User preferences
+								var prefs = new _IG_Prefs(); // User preferences
+								_IG_RegisterOnloadHandler(function () {
+									google.load("visualization", "1");
+								}); // [2008=04-09]
+
+								function initialize() {
+									// Create and send the query.
+									gadgetHelper = new google.visualization.GadgetHelper();
+									var query = gadgetHelper.createQueryFromPrefs(prefs);
+									query.send(handleQueryResponse); // Send the query
+								}
+								google.setOnLoadCallback(initialize); // Run when API is loaded
+
+								// [JR] Respond to HELP BUTTON click
+								function helpPop() {
+									var helpDiv = document.getElementById("helpbox");
+									if (helpDiv.className == 'popupoff') {
+										helpDiv.className = "popupon";
+									} else {
+										helpDiv.className = "popupoff";
+									}
+								}
+
+								// Open the gadget in its own browser window
+								function popOut() {
+									window.open(window.location.href, prefs.getString("tltitle"));
+								}
+
+								// Query response handler function.
+								function handleQueryResponse(response) {
+									if (!gadgetHelper.validateResponse(response))
+										return;
+									var data = response.getDataTable();
+									var nullF = function () {
+										return null;
+									};
+									// [JR] added column position (colpos) to indicate whether/where the required column was found (-1 is not found)
+									var columnMap = {
+										"title": {accessor: nullF, format: "string", colpos: -1},
+										"start": {accessor: nullF, format: "date", colpos: -1},
+										"end": {accessor: nullF, format: "date", colpos: -1},
+										"description": {accessor: nullF, format: "string", colpos: -1},
+										"link": {accessor: nullF, format: "string", colpos: -1},
+										"image": {accessor: nullF, format: "string", colpos: -1},
+										"icon": {accessor: nullF, format: "string", colpos: -1}
+									};
+									var makeAccessor = function (c, format) {
+										switch (format) {
+											case "string":
+												return function (r) {
+													return data.getFormattedValue(r, c);
+												};
+											case "date":
+												return function (r) {
+													var v = data.getValue(r, c);
+													return (v != null && typeof v != "string") ? v : null;
+												};
+										}
+										return nullF;
+									}
+									var colName = new Array();   // [JR] array to save column labels of all columns in the source range
+									var colCount = data.getNumberOfColumns();
+									for (var col = 0; col < colCount; col++) {
+										var label = data.getColumnLabel(col).toLowerCase();
+										colName[col] = label;  // save the label for later flexibility to give user more options for mapping
+										if (label in columnMap) {
+											columnMap[label].accessor = makeAccessor(col, columnMap[label].format);
+											columnMap[label].colpos = col;  // now we know in which column each required field was found
+										}
+									}
+									// [JR] check all columns required to count how many are found
+									var countFound = 0;
+									countFound += (columnMap["title"].colpos >= 0) ? 1 : 0;
+									countFound += (columnMap["start"].colpos >= 0) ? 1 : 0;
+									countFound += (columnMap["end"].colpos >= 0) ? 1 : 0;
+
+									if (countFound < 3) {
+										alert("You may not have included all the proper column headers in your range - please click help in the timeline");
+									}
+									var events = [];
+									for (var row = 0; row < data.getNumberOfRows(); row++) {
+										var start = columnMap["start"].accessor(row);
+										var end = columnMap["end"].accessor(row);
+										// [JR] Inserted logic to handle missing start dates - either set the start date to be the end date or skip the row
+										if (!start) {
+											if (!end) {
+												break;  // leave this loop to get the next row, since no start date is fatal
+											} else {
+												start = end;  // if there's an end date, but no start date - just use the end date
+											}
+										}
+										// put each valid event on the timeline
+										events.push(new Timeline.DefaultEventSource.Event(
+												"event" + row, // ID
+												start,
+												end,
+												null,
+												null,
+												end == null, // instant?
+												columnMap["title"].accessor(row),
+												columnMap["description"].accessor(row),
+												columnMap["image"].accessor(row),
+//    comment this out and replace with null until the link can be directed to a new window     columnMap["link"].accessor(row),
+												columnMap["link"].accessor(row),
+												columnMap["icon"].accessor(row),
+												null, // color
+												null  // color
+												));
+									}
+
+									createTimeline(events);
+								}
+
+								function createTimeline(events) {
+									// - - - - - - - - - - - - - - - - - - - - -  [JR] REPLACING FUNCTION TO FORCE LINKS TO OPEN IN A NEW WINDOW
+									Timeline.DefaultEventSource.Event.prototype.fillInfoBubble = function (elmt, theme, labeller) {
+										var doc = elmt.ownerDocument;
+
+										var title = this.getText();
+										var link = this.getLink();
+										var image = this.getImage();
+
+										if (image != null) {
+											var img = doc.createElement("img");
+											img.src = image;
+
+											theme.event.bubble.imageStyler(img);
+											elmt.appendChild(img);
+										}
+
+										var divTitle = doc.createElement("div");
+										var textTitle = doc.createTextNode(title);
+										if (link != null) {
+											var a = doc.createElement("a");
+											a.href = link;
+											a.target = "_blank";
+											a.appendChild(textTitle);
+											divTitle.appendChild(a);
+										} else {
+											divTitle.appendChild(textTitle);
+										}
+										theme.event.bubble.titleStyler(divTitle);
+										elmt.appendChild(divTitle);
+
+										var divBody = doc.createElement("div");
+										this.fillDescription(divBody);
+										theme.event.bubble.bodyStyler(divBody);
+										elmt.appendChild(divBody);
+
+										var divTime = doc.createElement("div");
+										this.fillTime(divTime, labeller);
+										theme.event.bubble.timeStyler(divTime);
+										elmt.appendChild(divTime);
+
+										var divWiki = doc.createElement("div");
+										this.fillWikiInfo(divWiki);
+										theme.event.bubble.wikiStyler(divWiki);
+										elmt.appendChild(divWiki);
+									}
+									// - - - - - - - - - - - - - - - - - - - - -
+
+
+									try {
+										var eventSource = new Timeline.DefaultEventSource(0);
+
+										var d = events.length > 0 ? events[0].getStart() : new Date();
+
+										// [JR] Get each band interval from the user prefs
+										var band1int = Timeline.DateTime.WEEK;
+										if (prefs.getString("band1interval") == 'month') {
+											band1int = Timeline.DateTime.MONTH;
+										} else {
+											if (prefs.getString("band1interval") == 'year') {
+												band1int = Timeline.DateTime.YEAR;
+											}
+										}
+										var band2int = Timeline.DateTime.MONTH;
+										if (prefs.getString("band2interval") == 'year') {
+											band2int = Timeline.DateTime.YEAR;
+										} else {
+											if (prefs.getString("band2interval") == 'decade') {
+												band2int = Timeline.DateTime.DECADE;
+											}
+										}
+										// [JR] values to associate to userpref for width of each interval
+										var widthValue = {
+											"xx-narrow": 25,
+											"x-narrow": 50,
+											"narrow": 100,
+											"medium": 200,
+											"wide": 300,
+											"x-wide": 500,
+											"xx-wide": 1000
+										};
+
+										// [JR] Use UserPrefs to set other display visuals = = = = = =
+										document.getElementById("statusTitle").innerHTML = prefs.getString("tltitle");   // set timeline title
+										var backgroundColorArray = new Array();
+										backgroundColorArray = [prefs.getString("bc1"), prefs.getString("bc2"), prefs.getString("bc3"), prefs.getString("bc4")];
+										var upperWidth = widthValue[prefs.getString("band1width")];
+										var lowerWidth = widthValue[prefs.getString("band2width")];
+										// [JR] some of the characteristics are deeper - in the Theme...
+										var myTheme = Timeline.getDefaultTheme();
+										myTheme.ether.backgroundColors = backgroundColorArray;
+										myTheme.ether.highlightColor = prefs.getString("hc");
+										// = = = = = = = = = = = = = = = = = = = = = = = = =
+
+										var bandInfos = [
+											Timeline.createBandInfo({
+												width: "80%",
+												intervalUnit: band1int,
+												intervalPixels: upperWidth,
+												eventSource: eventSource,
+												date: d
+											}),
+											Timeline.createBandInfo({
+												width: "20%",
+												intervalUnit: band2int,
+												intervalPixels: lowerWidth,
+												eventSource: eventSource,
+												date: d,
+												overview: true
+											})
+										];
+										bandInfos[1].syncWith = 0;
+										bandInfos[1].highlight = true;
+										// [JR] tried to offer Vertical orientation, but it doesn't render events...
+										// if(prefs.getString("orientation") == 'Horizontal') {
+										window.tl = Timeline.create(_gel("timelinebox"), bandInfos, Timeline.HORIZONTAL);
+										// } else {
+										//     window.tl = Timeline.create(_gel("timelinebox"), bandInfos, Timeline.VERTICAL);
+										// }
+										eventSource.addMany(events);
+									} catch (e) {
+										alert(e);
+									}
+								}
+        </script>
+
+		<script type="text/javascript">
+			var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+			document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+		</script>
+		<script type="text/javascript">
+			var pageTracker = _gat._getTracker("UA-1468410-6");
+			pageTracker._setDomainName("none");
+			pageTracker._setAllowLinker(true);
+			pageTracker._initData();
+			pageTracker._trackPageview();
+		</script>
+
+	</body>
+</html>
